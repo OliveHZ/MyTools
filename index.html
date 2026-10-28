@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>朗读 · 跑马灯</title>
+<meta name="description" content="本地语音合成朗读 + 全屏跑马灯，纯静态页面，支持 Android / iOS。">
+<meta name="theme-color" content="#f2f4f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1015" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="朗读跑马灯">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./assets/img/icon.svg">
+<link rel="apple-touch-icon" href="./assets/img/icon-180.png">
+<link rel="stylesheet" href="./assets/css/app.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="hd">
+    <h1 class="hd-title">朗读 · 跑马灯</h1>
+    <p class="hd-sub">本地语音合成 &nbsp;/&nbsp; 全屏滚动展示</p>
+  </header>
+
+  <nav class="seg" id="tabs" role="tablist" aria-label="功能切换">
+    <button type="button" class="seg-btn is-on" data-tab="tts" role="tab" aria-selected="true">语音朗读</button>
+    <button type="button" class="seg-btn" data-tab="marquee" role="tab" aria-selected="false">全屏跑马灯</button>
+  </nav>
+
+  <main class="main">
+
+    <!-- ============ 语音朗读 ============ -->
+    <section class="pane is-on" id="pane-tts" role="tabpanel">
+
+      <div class="card">
+        <div class="lbl">
+          <span>朗读文本</span>
+          <span class="hint" id="ttsCount">0 字</span>
+        </div>
+        <textarea id="ttsText" class="ta" rows="6" spellcheck="false"
+                  placeholder="输入要朗读的文字，支持中英文与标点停顿…"></textarea>
+
+        <div class="btn-row">
+          <button type="button" id="ttsPlay" class="btn btn-main">开始朗读</button>
+          <button type="button" id="ttsPause" class="btn" disabled>暂停</button>
+          <button type="button" id="ttsStop" class="btn" disabled>停止</button>
+        </div>
+        <p class="note" id="ttsNote"></p>
+      </div>
+
+      <div class="card">
+        <div class="lbl">
+          <span>语音引擎</span>
+          <span class="hint" id="voiceHint"></span>
+        </div>
+        <select id="ttsVoice" class="sel" aria-label="选择语音"></select>
+
+        <div class="ctl">
+          <div class="ctl-head"><span>语速</span><output id="rateOut">1.00×</output></div>
+          <input type="range" id="rate" min="0.5" max="2" step="0.05" value="1">
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head"><span>音调</span><output id="pitchOut">1.00</output></div>
+          <input type="range" id="pitch" min="0.5" max="1.8" step="0.05" value="1">
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head"><span>音量</span><output id="volOut">100%</output></div>
+          <input type="range" id="vol" min="0" max="1" step="0.05" value="1">
+        </div>
+
+        <label class="switch">
+          <input type="checkbox" id="awake" checked>
+          <span class="track"></span>
+          <span>朗读时保持屏幕常亮</span>
+        </label>
+      </div>
+
+      <div class="card" id="ttsPreviewCard" hidden>
+        <div class="lbl">
+          <span>朗读进度</span>
+          <span class="hint" id="ttsProg">—</span>
+        </div>
+        <div class="preview" id="ttsPreview"></div>
+      </div>
+
+    </section>
+
+    <!-- ============ 全屏跑马灯 ============ -->
+    <section class="pane" id="pane-marquee" role="tabpanel">
+
+      <div class="card">
+        <div class="lbl">
+          <span>滚动文本</span>
+          <span class="hint" id="mqCount">0 字</span>
+        </div>
+        <textarea id="mqText" class="ta" rows="5" spellcheck="false"
+                  placeholder="输入要全屏滚动的文字，换行会分段…"></textarea>
+        <div class="btn-row">
+          <button type="button" id="mqStart" class="btn btn-main">全屏播放</button>
+        </div>
+        <p class="note">iPhone 上如需完全隐藏浏览器地址栏，请用「添加到主屏幕」后从桌面图标打开。</p>
+      </div>
+
+      <div class="card">
+        <div class="lbl"><span>滚动方向</span></div>
+        <div class="seg seg-sm" id="mqDir" role="group" aria-label="滚动方向">
+          <button type="button" class="seg-btn is-on" data-dir="left">← 向左</button>
+          <button type="button" class="seg-btn" data-dir="right">向右 →</button>
+          <button type="button" class="seg-btn" data-dir="up">↑ 向上</button>
+          <button type="button" class="seg-btn" data-dir="down">↓ 向下</button>
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head"><span>滚动速度</span><output id="mqSpeedOut">120 px/s</output></div>
+          <input type="range" id="mqSpeed" min="20" max="420" step="10" value="120">
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head"><span>字号</span><output id="mqFsOut">72 px</output></div>
+          <input type="range" id="mqFs" min="24" max="220" step="2" value="72">
+        </div>
+
+        <div class="color-row">
+          <label class="color-field">
+            <span>文字</span>
+            <input type="color" id="mqFg" value="#ffffff">
+          </label>
+          <label class="color-field">
+            <span>背景</span>
+            <input type="color" id="mqBg" value="#0b0d12">
+          </label>
+        </div>
+
+        <label class="switch">
+          <input type="checkbox" id="mqLed">
+          <span class="track"></span>
+          <span>点阵（LED 屏）效果</span>
+        </label>
+
+        <label class="switch">
+          <input type="checkbox" id="mqGlow" checked>
+          <span class="track"></span>
+          <span>文字发光</span>
+        </label>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="ft">
+    纯静态页面 · 无后端 · 无网络请求
+  </footer>
+
+</div>
+
+<!-- ============ 全屏舞台 ============ -->
+<div class="stage" id="stage" hidden aria-hidden="true">
+  <div class="stage-view" id="stageView">
+    <div class="stage-track" id="stageTrack"></div>
+  </div>
+  <div class="stage-ui" id="stageUI">
+    <button type="button" class="stage-btn" id="stagePause">暂停</button>
+    <button type="button" class="stage-btn" id="stageExit">退出</button>
+  </div>
+</div>
+
+<script src="./assets/js/app.js"></script>
+<script src="./assets/js/tts.js"></script>
+<script src="./assets/js/marquee.js"></script>
+</body>
+</html>
