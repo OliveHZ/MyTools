@@ -108,6 +108,19 @@
       </div>
 
       <div class="card">
+        <div class="lbl">
+          <span>画面方向</span>
+          <span class="hint" id="mqOrientHint"></span>
+        </div>
+        <div class="seg seg-sm" id="mqOrient" role="group" aria-label="画面方向">
+          <button type="button" class="seg-btn is-on" data-orient="auto">跟随设备</button>
+          <button type="button" class="seg-btn" data-orient="landscape">横屏</button>
+          <button type="button" class="seg-btn" data-orient="portrait">竖屏</button>
+        </div>
+        <p class="note">强制方向会把画面整体旋转 90°，按提示横置或竖置手机即可正常观看。</p>
+      </div>
+
+      <div class="card">
         <div class="lbl"><span>滚动方向</span></div>
         <div class="seg seg-sm" id="mqDir" role="group" aria-label="滚动方向">
           <button type="button" class="seg-btn is-on" data-dir="left">← 向左</button>
@@ -125,6 +138,12 @@
           <div class="ctl-head"><span>字号</span><output id="mqFsOut">72 px</output></div>
           <input type="range" id="mqFs" min="24" max="220" step="2" value="72">
         </div>
+
+        <div class="ctl">
+          <div class="ctl-head"><span>重复间隔</span><output id="mqGapOut">200 px</output></div>
+          <input type="range" id="mqGap" min="0" max="1200" step="20" value="200">
+        </div>
+        <p class="note">文字滚完到尾后留出的空白，再从头部接上继续滚。设为 0 则首尾紧贴循环。</p>
 
         <div class="color-row">
           <label class="color-field">
@@ -162,12 +181,14 @@
 
 <!-- ============ 全屏舞台 ============ -->
 <div class="stage" id="stage" hidden aria-hidden="true">
-  <div class="stage-view" id="stageView">
-    <div class="stage-track" id="stageTrack"></div>
-  </div>
-  <div class="stage-ui" id="stageUI">
-    <button type="button" class="stage-btn" id="stagePause">暂停</button>
-    <button type="button" class="stage-btn" id="stageExit">退出</button>
+  <div class="stage-frame" id="stageFrame">
+    <div class="stage-view" id="stageView">
+      <div class="stage-track" id="stageTrack"></div>
+    </div>
+    <div class="stage-ui" id="stageUI">
+      <button type="button" class="stage-btn" id="stagePause">暂停</button>
+      <button type="button" class="stage-btn" id="stageExit">退出</button>
+    </div>
   </div>
 </div>
 

@@ -37,14 +37,21 @@
       toastEl = document.createElement('div');
       toastEl.className = 'toast';
       toastEl.setAttribute('role', 'status');
-      document.body.appendChild(toastEl);
     }
+
+    // 全屏时浏览器只渲染全屏元素的子树，挂到 body 上的提示会不可见
+    var stage = document.getElementById('stage');
+    var host = (stage && !stage.hidden) ? stage : document.body;
+    if (toastEl.parentNode !== host) {
+      host.appendChild(toastEl);
+    }
+
     toastEl.textContent = msg;
     toastEl.classList.add('is-on');
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(function () {
       toastEl.classList.remove('is-on');
-    }, 2200);
+    }, 2400);
   };
 
   /* ------------------------------------------------------------------

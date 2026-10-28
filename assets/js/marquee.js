@@ -11,11 +11,15 @@
     text: NS.byId('mqText'),
     count: NS.byId('mqCount'),
     start: NS.byId('mqStart'),
+    orient: NS.byId('mqOrient'),
+    orientHint: NS.byId('mqOrientHint'),
     dir: NS.byId('mqDir'),
     speed: NS.byId('mqSpeed'),
     speedOut: NS.byId('mqSpeedOut'),
     fs: NS.byId('mqFs'),
     fsOut: NS.byId('mqFsOut'),
+    gap: NS.byId('mqGap'),
+    gapOut: NS.byId('mqGapOut'),
     fg: NS.byId('mqFg'),
     bg: NS.byId('mqBg'),
     led: NS.byId('mqLed'),
@@ -23,6 +27,7 @@
   };
 
   var stage = NS.byId('stage');
+  var frame = NS.byId('stageFrame');
   var view = NS.byId('stageView');
   var track = NS.byId('stageTrack');
   var ui = NS.byId('stageUI');
@@ -38,19 +43,22 @@
      ------------------------------------------------------------------ */
   var S = NS.store.get('wb.mq', {
     dir: 'left',
+    orient: 'auto',
     speed: 120,
     fs: 72,
     fg: '#ffffff',
     bg: '#0b0d12',
     led: false,
     glow: true,
-    gap: 80
+    gap: 200
   });
 
   S.dir = ['left', 'right', 'up', 'down'].indexOf(S.dir) >= 0 ? S.dir : 'left';
+  S.orient = ['auto', 'landscape', 'portrait'].indexOf(S.orient) >= 0 ? S.orient : 'auto';
   S.speed = NS.clamp(Number(S.speed) || 120, 20, 420);
   S.fs = NS.clamp(Number(S.fs) || 72, 24, 220);
-  S.gap = NS.clamp(Number(S.gap) || 80, 0, 400);
+  S.gap = NS.clamp(Number(S.gap), 0, 1200);
+  if (isNaN(S.gap)) { S.gap = 200; }
 
   function save() { NS.store.set('wb.mq', S); }
 
@@ -76,9 +84,41 @@
   }
 
   /* ------------------------------------------------------------------
+     画面方向
+     iOS Safari 不支持 screen.orientation.lock，因此统一用几何旋转实现：
+     需要与设备实际朝向不同时，把画框宽高对调并整体旋转 90°
+     ------------------------------------------------------------------ */
+  function deviceIsPortrait() {
+    return window.innerHeight >= window.innerWidth;
+  }
+
+  function needRotate() {
+    if (S.orient === 'auto') { return false; }
+    return (S.orient === 'portrait') !== deviceIsPortrait();
+  }
+
+  function applyOrientation() {
+    if (needRotate()) {
+      frame.style.width = window.innerHeight + 'px';
+      frame.style.height = window.innerWidth + 'px';
+      frame.style.left = '50%';
+      frame.style.top = '50%';
+      frame.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+      stage.classList.add('is-rot');
+    } else {
+      frame.style.width = '';
+      frame.style.height = '';
+      frame.style.left = '';
+      frame.style.top = '';
+      frame.style.transform = '';
+      stage.classList.remove('is-rot');
+    }
+  }
+
+  /* ------------------------------------------------------------------
      构建轨道：按视口尺寸决定复制份数，保证无空隙
      ------------------------------------------------------------------ */
-  function build() {
+  function build(keepPhase) {
     var text = getText();
     if (!text.trim()) { return false; }
 
@@ -103,19 +143,34 @@
     proto.textContent = content;
     track.appendChild(proto);
 
-    var box = proto.getBoundingClientRect();
-    var size = isHoriz() ? box.width : box.height;
+    // 直接量两份副本的间距作为循环周期：比用单份尺寸更可靠
+    // 用欧氏距离，画框旋转 90° 时依然成立（刚体变换不改变距离）
+    var twin = proto.cloneNode(true);
+    track.appendChild(twin);
+    var r0 = proto.getBoundingClientRect();
+    var r1 = twin.getBoundingClientRect();
+    var dx = (r1.left + r1.width / 2) - (r0.left + r0.width / 2);
+    var dy = (r1.top + r1.height / 2) - (r0.top + r0.height / 2);
+    var size = Math.sqrt(dx * dx + dy * dy);
     if (size < 1) { return false; }
 
     var viewSize = isHoriz() ? view.clientWidth : view.clientHeight;
-    var n = Math.max(2, Math.ceil(viewSize / size) + 1);
 
-    for (var i = 1; i < n; i++) {
+    // 轨道在视口内居中，左右各溢出 (n*cycle - viewW)/2
+    // 要保证任意 offset ∈ [0, cycle) 时视口都被填满，需 n*cycle ≥ 2*cycle + viewW
+    // 即 n ≥ 2 + viewW/cycle —— 少一份就会在周期末尾露出空白
+    var n = Math.max(2, Math.ceil(viewSize / size) + 2);
+
+    for (var i = 2; i < n; i++) {
       track.appendChild(proto.cloneNode(true));
     }
 
     cycle = size;
-    offset = 0;
+
+    // 保留相位：改字号/间隔/方向后不跳回开头
+    // 内容以 cycle 为周期重复，因此整周期位移在视觉上不可见
+    offset = keepPhase && cycle > 0 ? offset % cycle : 0;
+
     return true;
   }
 
@@ -217,6 +272,7 @@
     if (running) { return; }
 
     openStage();
+    applyOrientation();
 
     if (!build()) {
       closeStage();
@@ -238,6 +294,10 @@
 
     btnPause.textContent = '暂停';
     showUI();
+
+    if (needRotate()) {
+      NS.toast(S.orient === 'landscape' ? '已切为横屏，请横置手机观看' : '已切为竖屏，请竖置手机观看');
+    }
   }
 
   function togglePause() {
@@ -249,7 +309,8 @@
 
   function rebuild() {
     if (!running) { return; }
-    build();
+    applyOrientation();
+    build(true);
     applyTransform();
   }
 
@@ -261,19 +322,35 @@
   /* ------------------------------------------------------------------
      事件绑定
      ------------------------------------------------------------------ */
+  function syncSeg(container, attr, value) {
+    if (!container) { return; }
+    var btns = container.querySelectorAll('.seg-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('is-on', btns[i].getAttribute(attr) === value);
+    }
+  }
+
   function syncUI() {
     els.speed.value = String(S.speed);
     els.fs.value = String(S.fs);
+    els.gap.value = String(S.gap);
     els.speedOut.textContent = S.speed + ' px/s';
     els.fsOut.textContent = S.fs + ' px';
+    els.gapOut.textContent = S.gap + ' px';
     els.fg.value = S.fg;
     els.bg.value = S.bg;
     els.led.checked = !!S.led;
     els.glow.checked = !!S.glow;
 
-    var btns = els.dir.querySelectorAll('.seg-btn');
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].classList.toggle('is-on', btns[i].getAttribute('data-dir') === S.dir);
+    syncSeg(els.dir, 'data-dir', S.dir);
+    syncSeg(els.orient, 'data-orient', S.orient);
+
+    if (els.orientHint) {
+      if (S.orient === 'auto') {
+        els.orientHint.textContent = deviceIsPortrait() ? '当前竖屏' : '当前横屏';
+      } else {
+        els.orientHint.textContent = needRotate() ? '画面旋转 90°' : '与设备一致';
+      }
     }
   }
 
@@ -292,6 +369,15 @@
     rebuild();
   });
 
+  els.orient.addEventListener('click', function (e) {
+    var btn = e.target.closest('.seg-btn');
+    if (!btn) { return; }
+    S.orient = btn.getAttribute('data-orient');
+    save();
+    syncUI();
+    rebuild();
+  });
+
   els.speed.addEventListener('input', function () {
     S.speed = NS.clamp(Number(els.speed.value) || 120, 20, 420);
     els.speedOut.textContent = S.speed + ' px/s';
@@ -302,6 +388,14 @@
     S.fs = NS.clamp(Number(els.fs.value) || 72, 24, 220);
     els.fsOut.textContent = S.fs + ' px';
     stage.style.setProperty('--fs', S.fs + 'px');
+    save();
+    scheduleRebuild();
+  });
+
+  els.gap.addEventListener('input', function () {
+    S.gap = NS.clamp(Number(els.gap.value), 0, 1200);
+    els.gapOut.textContent = S.gap + ' px';
+    stage.style.setProperty('--gap', S.gap + 'px');
     save();
     scheduleRebuild();
   });
@@ -357,9 +451,14 @@
     }
   });
 
-  // 尺寸变化（含全屏切换、横竖屏）后重新计算份数与循环长度
-  window.addEventListener('resize', scheduleRebuild);
-  window.addEventListener('orientationchange', scheduleRebuild);
+  // 尺寸变化（含全屏切换、横竖屏）后重新计算方向、份数与循环长度
+  function onViewportChange() {
+    syncUI();          // 刷新「当前竖屏 / 横屏」「画面旋转 90°」提示
+    scheduleRebuild();
+  }
+
+  window.addEventListener('resize', onViewportChange);
+  window.addEventListener('orientationchange', onViewportChange);
   document.addEventListener('fullscreenchange', scheduleRebuild);
   document.addEventListener('webkitfullscreenchange', scheduleRebuild);
 

@@ -396,6 +396,18 @@ input[type="range"] {
 
 .stage[hidden] { display: none; }
 
+/* 画框：正常铺满视口；强制方向时由 JS 写入交换后的宽高并整体旋转 */
+.stage-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.stage.is-rot .stage-frame {
+  inset: auto;
+  transform-origin: center center;
+  will-change: transform;
+}
+
 .stage-view {
   position: absolute;
   inset: 0;
@@ -517,6 +529,7 @@ input[type="range"] {
   font-size: 14px;
   line-height: 1.4;
   text-align: center;
+  border: 1px solid rgba(255, 255, 255, .16);
   opacity: 0;
   transform: translate(-50%, 10px);
   pointer-events: none;
